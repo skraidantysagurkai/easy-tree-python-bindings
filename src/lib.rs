@@ -213,6 +213,8 @@ impl<T> Node<T> {
 #[derive(Clone)]
 pub struct Tree<T> {
     nodes: Vec<Node<T>>,
+    /// Stack for traverse_mut to avoid allocations
+    stack: Vec<(usize, bool)>,
 }
 
 impl<T> Default for Tree<T> {
@@ -234,7 +236,10 @@ impl<T> Tree<T> {
     /// let tree: Tree<i32> = Tree::new();
     /// ```
     pub fn new() -> Self {
-        Self { nodes: Vec::new() }
+        Self {
+            nodes: Vec::new(),
+            stack: Vec::new(),
+        }
     }
 
     /// Adds a new node to the tree.
@@ -523,6 +528,42 @@ impl<T> Tree<T> {
         }
     }
 
+    /// Walks the tree recursively, applying the given functions before and after processing the
+    /// children of each node. This version allows for mutable access to the nodes.
+    pub fn traverse_mut<S>(
+        &mut self,
+        mut before_processing_children: impl FnMut(usize, &mut T, &mut S),
+        mut after_processing_the_subtree: impl FnMut(usize, &mut T, &mut S),
+        s: &mut S,
+    ) {
+        if self.is_empty() {
+            return;
+        }
+
+        self.stack.clear();
+        self.stack.push((0, false));
+
+        while let Some((index, children_visited)) = self.stack.pop() {
+            if children_visited {
+                // All children are processed, call f2
+                let node = &mut self.nodes[index];
+                after_processing_the_subtree(index, &mut node.data, s);
+            } else {
+                // Call f and mark this node's children for processing
+                let node = &mut self.nodes[index];
+                before_processing_children(index, &mut node.data, s);
+
+                // Re-push the current node with children_visited set to true
+                self.stack.push((index, true));
+
+                // Push all children onto the stack
+                for &child in node.children.iter().rev() {
+                    self.stack.push((child, false));
+                }
+            }
+        }
+    }
+
     /// Returns an iterator over the indices and data of the nodes in the tree.
     pub fn iter(&self) -> impl Iterator<Item = (usize, &T)> {
         self.nodes
@@ -646,13 +687,10 @@ mod tests {
         let mut result = vec![];
 
         tree.traverse(
-            |index, node, result| {
-                result.push(format!("Calling handler for node {}: {}", index, node))
-            },
+            |index, node, result| result.push(format!("Calling handler for node {index}: {node}")),
             |index, _node, result| {
                 result.push(format!(
-                    "Finished handling node {} and all it's children",
-                    index
+                    "Finished handling node {index} and all its children"
                 ))
             },
             &mut result,
@@ -664,11 +702,11 @@ mod tests {
                 "Calling handler for node 0: 0",
                 "Calling handler for node 1: 1",
                 "Calling handler for node 3: 3",
-                "Finished handling node 3 and all it's children",
-                "Finished handling node 1 and all it's children",
+                "Finished handling node 3 and all its children",
+                "Finished handling node 1 and all its children",
                 "Calling handler for node 2: 2",
-                "Finished handling node 2 and all it's children",
-                "Finished handling node 0 and all it's children",
+                "Finished handling node 2 and all its children",
+                "Finished handling node 0 and all its children",
             ]
         );
     }
