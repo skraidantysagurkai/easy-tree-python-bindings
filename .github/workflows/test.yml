@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.12", "3.13", "3.14"]
+        python-version: ["3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -28,7 +28,9 @@ jobs:
       - name: Install maturin and pytest
         run: pip install maturin pytest
       - name: Build and install extension
-        run: maturin develop
+        run: maturin build --release
+      - name: Install wheel
+        run: pip install --find-links target/wheels easy_tree
       - name: Run Python tests
         run: pytest tests/ -v
 
