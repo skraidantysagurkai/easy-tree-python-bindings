@@ -1,16 +1,15 @@
 use pyo3::prelude::*;
 use crate::Tree;  // imports Tree from the original lib.rs
 
-/// TO DO:
-///   1. new, add_node, add_child, add_child_to_root — gets you a working tree - DONE
-///   2. len, is_empty, clear, remove_subtree — utility - DONE
-///   3. get, children, parent_index_unchecked — lets you read it back - DONE
-///   4. iter (as items()) — lets Python loop over the tree - DONE
-///   5. traverse — most powerful, do last once you're comfortable
-
 #[pyclass(unsendable)]  // Marking as unsendable for now, will throw error if used across threads
 pub struct PyTree {
     inner: Tree<Py<PyAny>>,
+}
+
+impl Default for PyTree {
+    fn default() -> Self {
+        Self::new()
+        }
 }
 
 #[pymethods]
