@@ -12,6 +12,7 @@ categories = ["data-structures", "algorithms"]
 readme = "README.md"
 
 [dependencies]
+pyo3 = { version = "0.28.3", features = ["extension-module"] }
 # Add other dependencies here
 rayon = { version = "1.10", optional = true }
 
@@ -20,6 +21,10 @@ default = []
 
 [badges]
 github-actions = { repository = "antouhou/easy-tree" }
+
+[lib]
+name = "easy_tree"
+crate-type = ["cdylib", "rlib"]
 
 # For documentation purpose
 [package.metadata.docs.rs]

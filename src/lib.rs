@@ -127,6 +127,8 @@
 //! ## License
 //! This project is licensed under the MIT License. See [LICENSE](https://github.com/antouhou/easy-tree/blob/main/LICENSE) for details.
 
+pub mod python_bindings;
+
 #[cfg(feature = "rayon")]
 pub use rayon;
 #[cfg(feature = "rayon")]
@@ -692,6 +694,47 @@ impl<T> Tree<T> {
             self.free_list.clear();
         }
     }
+
+    /// Returns the number of nodes in the subtree rooted at `idx`, including `idx` itself.
+    /// Returns 0 if the index is invalid or the node has been removed.
+    pub fn subtree_size(&self, idx: usize) -> usize {
+        if self.nodes.get(idx).and_then(|n| n.as_ref()).is_none() {
+            return 0;
+        }
+        let mut count = 0;
+        let mut stack = vec![idx];
+        while let Some(current) = stack.pop() {
+            if let Some(node) = self.nodes.get(current).and_then(|n| n.as_ref()) {
+                count += 1;
+                stack.extend_from_slice(&node.children);
+            }
+        }
+        count
+    }
+
+    /// Moves all children of `src` to `dst`, updating their parent pointers.
+    /// After this call `src` has no children and can be safely removed with `remove_subtree`.
+    ///
+    /// Panics if either `src` or `dst` is an invalid or removed node index.
+    pub fn move_children(&mut self, src: usize, dst: usize) {
+        let children: Vec<usize> = self.nodes[src]
+            .as_ref()
+            .unwrap()
+            .children
+            .clone();
+
+        for &child in &children {
+            self.nodes[child].as_mut().unwrap().parent = Some(dst);
+        }
+
+        self.nodes[dst]
+            .as_mut()
+            .unwrap()
+            .children
+            .extend_from_slice(&children);
+
+        self.nodes[src].as_mut().unwrap().children.clear();
+    }
 }
 
 #[cfg(feature = "rayon")]
@@ -738,8 +781,8 @@ mod tests {
 
         assert_eq!(tree.children(root), &[child1, child2]);
         assert_eq!(tree.children(child1), &[child3]);
-        assert_eq!(tree.children(child2), &[]);
-        assert_eq!(tree.children(child3), &[]);
+        assert_eq!(tree.children(child2), <&[usize]>::default());
+        assert_eq!(tree.children(child3), <&[usize]>::default());
     }
 
     #[test]
