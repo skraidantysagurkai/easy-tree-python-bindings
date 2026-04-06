@@ -1,7 +1,7 @@
-use pyo3::prelude::*;
-use crate::Tree;  // imports Tree from the original lib.rs
+use crate::Tree;
+use pyo3::prelude::*; // imports Tree from the original lib.rs
 
-#[pyclass(unsendable)]  // Marking as unsendable for now, will throw error if used across threads
+#[pyclass(unsendable)] // Marking as unsendable for now, will throw error if used across threads
 pub struct PyTree {
     inner: Tree<Py<PyAny>>,
 }
@@ -9,15 +9,16 @@ pub struct PyTree {
 impl Default for PyTree {
     fn default() -> Self {
         Self::new()
-        }
+    }
 }
 
 #[pymethods]
 impl PyTree {
-    #[new]                          // tells PyO3 this is __init__ / __new__
-    pub fn new() -> Self {          // no arguments, matches Tree::new()
+    #[new] // tells PyO3 this is __init__ / __new__
+    pub fn new() -> Self {
+        // no arguments, matches Tree::new()
         PyTree {
-            inner: Tree::new(),     // just delegates to the original
+            inner: Tree::new(), // just delegates to the original
         }
     }
 
@@ -73,7 +74,10 @@ impl PyTree {
     }
 
     pub fn items(&self, py: Python<'_>) -> Vec<(usize, Py<PyAny>)> {
-        self.inner.iter().map(|(idx, obj)| (idx, obj.clone_ref(py))).collect()
+        self.inner
+            .iter()
+            .map(|(idx, obj)| (idx, obj.clone_ref(py)))
+            .collect()
     }
 
     /// Merges duplicate internal nodes (non-root, non-leaf) whose data compares equal with ==.
@@ -83,12 +87,17 @@ impl PyTree {
     pub fn deduplicate(&mut self, py: Python<'_>) -> PyResult<()> {
         loop {
             // Collect indices of internal nodes: must have a parent AND have children
-            let candidates: Vec<usize> = self.inner
+            let candidates: Vec<usize> = self
+                .inner
                 .iter()
                 .filter_map(|(idx, _)| {
                     let has_parent = self.inner.parent_index_unchecked(idx).is_some();
                     let has_children = !self.inner.children(idx).is_empty();
-                    if has_parent && has_children { Some(idx) } else { None }
+                    if has_parent && has_children {
+                        Some(idx)
+                    } else {
+                        None
+                    }
                 })
                 .collect();
 
@@ -128,12 +137,7 @@ impl PyTree {
         Ok(())
     }
 
-    pub fn traverse(
-        &self,
-        py: Python<'_>,
-        before: Py<PyAny>,
-        after: Py<PyAny>,
-    ) -> PyResult<()> {
+    pub fn traverse(&self, py: Python<'_>, before: Py<PyAny>, after: Py<PyAny>) -> PyResult<()> {
         let mut error: Option<PyErr> = None;
 
         self.inner.traverse(

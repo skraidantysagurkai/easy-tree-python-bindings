@@ -717,11 +717,7 @@ impl<T> Tree<T> {
     ///
     /// Panics if either `src` or `dst` is an invalid or removed node index.
     pub fn move_children(&mut self, src: usize, dst: usize) {
-        let children: Vec<usize> = self.nodes[src]
-            .as_ref()
-            .unwrap()
-            .children
-            .clone();
+        let children: Vec<usize> = self.nodes[src].as_ref().unwrap().children.clone();
 
         for &child in &children {
             self.nodes[child].as_mut().unwrap().parent = Some(dst);
