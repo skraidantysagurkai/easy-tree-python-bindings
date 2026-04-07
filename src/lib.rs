@@ -731,6 +731,96 @@ impl<T> Tree<T> {
 
         self.nodes[src].as_mut().unwrap().children.clear();
     }
+
+    /// Returns `true` if `node` is a descendant of `ancestor` (walks up via parent pointers).
+    pub fn is_descendant(&self, node: usize, ancestor: usize) -> bool {
+        let mut current = node;
+        loop {
+            match self.nodes.get(current).and_then(|n| n.as_ref()) {
+                None => return false,
+                Some(n) => match n.parent {
+                    None => return false,
+                    Some(parent) => {
+                        if parent == ancestor {
+                            return true;
+                        }
+                        if parent == current {
+                            return false; // self-referential parent, stop
+                        }
+                        current = parent;
+                    }
+                },
+            }
+        }
+    }
+
+    /// Moves `node` and its entire subtree under `new_parent`.
+    /// Returns `false` if the operation is invalid (bad index, root node, or would create a cycle).
+    pub fn move_subtree(&mut self, node: usize, new_parent: usize) -> bool {
+        if node == new_parent {
+            return false;
+        }
+        if !matches!(self.nodes.get(node), Some(Some(_))) {
+            return false;
+        }
+        if !matches!(self.nodes.get(new_parent), Some(Some(_))) {
+            return false;
+        }
+        if self.nodes[node].as_ref().unwrap().parent.is_none() {
+            return false;
+        }
+        if self.is_descendant(new_parent, node) {
+            return false;
+        }
+
+        let old_parent = self.nodes[node].as_ref().unwrap().parent.unwrap();
+        self.nodes[old_parent]
+            .as_mut()
+            .unwrap()
+            .children
+            .retain(|&c| c != node);
+        self.nodes[node].as_mut().unwrap().parent = Some(new_parent);
+        self.nodes[new_parent].as_mut().unwrap().children.push(node);
+        true
+    }
+
+    /// Moves only `node` (not its subtree) under `new_parent`.
+    /// The node's children are re-parented to the node's current parent before the move.
+    /// Returns `false` if the operation is invalid (bad index, root node, or would create a cycle).
+    pub fn move_node(&mut self, node: usize, new_parent: usize) -> bool {
+        if node == new_parent {
+            return false;
+        }
+        if !matches!(self.nodes.get(node), Some(Some(_))) {
+            return false;
+        }
+        if !matches!(self.nodes.get(new_parent), Some(Some(_))) {
+            return false;
+        }
+        if self.nodes[node].as_ref().unwrap().parent.is_none() {
+            return false;
+        }
+        if self.is_descendant(new_parent, node) {
+            return false;
+        }
+
+        let old_parent = self.nodes[node].as_ref().unwrap().parent.unwrap();
+
+        // Re-parent node's children to its current parent before detaching
+        self.move_children(node, old_parent);
+
+        // Detach node from old parent
+        self.nodes[old_parent]
+            .as_mut()
+            .unwrap()
+            .children
+            .retain(|&c| c != node);
+
+        // Attach node to new parent
+        self.nodes[node].as_mut().unwrap().parent = Some(new_parent);
+        self.nodes[new_parent].as_mut().unwrap().children.push(node);
+        true
+    }
 }
 
 #[cfg(feature = "rayon")]

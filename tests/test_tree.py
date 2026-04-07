@@ -1,4 +1,5 @@
 from easy_tree import PyTree
+import pytest
 
 
 def test_new():
@@ -114,7 +115,7 @@ def test_traverse_order():
     tree = PyTree()
     root = tree.add_node("root")
     child1 = tree.add_child(root, "child1")
-    child2 = tree.add_child(root, "child2")
+    tree.add_child(root, "child2")
     tree.add_child(child1, "grandchild")
 
     log = []
@@ -166,6 +167,89 @@ def test_traverse_empty_tree():
     assert log == []
 
 
+def test_move_subtree():
+    tree = PyTree()
+    root = tree.add_node("root")
+    child1 = tree.add_child(root, "child1")
+    child2 = tree.add_child(root, "child2")
+    grand = tree.add_child(child1, "grandchild")
+
+    # move child1 (and its subtree) under child2
+    tree.move_subtree(child1, child2)
+
+    assert tree.children(root) == [child2]  # child1 detached from root
+    assert tree.children(child2) == [child1]  # child1 now under child2
+    assert tree.children(child1) == [grand]  # grandchild still under child1
+    assert tree.parent(child1) == "child2"
+    assert tree.parent(grand) == "child1"
+    assert len(tree) == 4  # nothing added or removed
+
+
+def test_move_subtree_self_referential_root_does_not_hang():
+    tree = PyTree()
+    root = tree.add_node("root")
+    child = tree.add_child(root, "child")
+    grand = tree.add_child(child, "grandchild")
+
+    # This must return quickly — previously hung forever due to root's
+    # self-referential parent pointer causing is_descendant to loop infinitely
+    with pytest.raises(ValueError):
+        tree.move_subtree(child, grand)  # invalid: grand is inside child's subtree
+
+
+def test_move_subtree_cycle_raises():
+    tree = PyTree()
+    root = tree.add_node("root")
+    child = tree.add_child(root, "child")
+    grand = tree.add_child(child, "grand")
+
+    import pytest
+
+    with pytest.raises(ValueError):
+        tree.move_subtree(child, grand)  # grand is inside child's subtree
+
+
+def test_move_subtree_root_raises():
+    tree = PyTree()
+    root = tree.add_node("root")
+    child = tree.add_child(root, "child")
+
+    import pytest
+
+    with pytest.raises(ValueError):
+        tree.move_subtree(root, child)  # cannot move root
+
+
+def test_move_node():
+    tree = PyTree()
+    root = tree.add_node("root")
+    child1 = tree.add_child(root, "child1")
+    child2 = tree.add_child(root, "child2")
+    grand = tree.add_child(child1, "grandchild")
+
+    # move only child1 under child2 — grandchild stays under root
+    tree.move_node(child1, child2)
+
+    assert tree.children(root) == [child2, grand]  # grandchild re-parented to root
+    assert tree.children(child2) == [child1]  # child1 now under child2
+    assert tree.children(child1) == []  # child1 has no children
+    assert tree.parent(child1) == "child2"
+    assert tree.parent(grand) == "root"
+    assert len(tree) == 4  # nothing added or removed
+
+
+def test_move_node_cycle_raises():
+    tree = PyTree()
+    root = tree.add_node("root")
+    child = tree.add_child(root, "child")
+    grand = tree.add_child(child, "grand")
+
+    import pytest
+
+    with pytest.raises(ValueError):
+        tree.move_node(child, grand)
+
+
 def test_deduplicate_merges_internal_nodes():
     tree = PyTree()
     root = tree.add_node("root")
@@ -173,9 +257,9 @@ def test_deduplicate_merges_internal_nodes():
     a = tree.add_child(root, "section")
     b = tree.add_child(root, "section")
     # Each has children so they are internal nodes
-    a1 = tree.add_child(a, "leaf_a1")
-    a2 = tree.add_child(a, "leaf_a2")
-    b1 = tree.add_child(b, "leaf_b1")
+    tree.add_child(a, "leaf_a1")
+    tree.add_child(a, "leaf_a2")
+    tree.add_child(b, "leaf_b1")
 
     # a has subtree size 3, b has subtree size 2 — b merges into a
     tree.deduplicate()
@@ -251,6 +335,12 @@ if __name__ == "__main__":
         test_remove_subtree,
         test_items,
         test_set,
+        test_move_subtree,
+        test_move_subtree_self_referential_root_does_not_hang,
+        test_move_subtree_cycle_raises,
+        test_move_subtree_root_raises,
+        test_move_node,
+        test_move_node_cycle_raises,
         test_deduplicate_merges_internal_nodes,
         test_deduplicate_leaves_untouched,
         test_deduplicate_root_untouched,

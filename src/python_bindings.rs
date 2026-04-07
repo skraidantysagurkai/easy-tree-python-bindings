@@ -80,6 +80,29 @@ impl PyTree {
             .collect()
     }
 
+    /// Moves `node` and its entire subtree under `new_parent`.
+    /// Raises ValueError if the move is invalid (bad index, root node, or would create a cycle).
+    pub fn move_subtree(&mut self, node: usize, new_parent: usize) -> PyResult<()> {
+        if !self.inner.move_subtree(node, new_parent) {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "Cannot move subtree: invalid index, node is root, or would create a cycle",
+            ));
+        }
+        Ok(())
+    }
+
+    /// Moves only `node` (not its subtree) under `new_parent`.
+    /// The node's children are re-parented to the node's current parent before the move.
+    /// Raises ValueError if the move is invalid (bad index, root node, or would create a cycle).
+    pub fn move_node(&mut self, node: usize, new_parent: usize) -> PyResult<()> {
+        if !self.inner.move_node(node, new_parent) {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "Cannot move node: invalid index, node is root, or would create a cycle",
+            ));
+        }
+        Ok(())
+    }
+
     /// Merges duplicate internal nodes (non-root, non-leaf) whose data compares equal with ==.
     /// The node with the smaller subtree is merged into the larger one:
     /// its children are moved (not copied) under the larger node, then it is removed.
