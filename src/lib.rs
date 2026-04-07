@@ -744,6 +744,9 @@ impl<T> Tree<T> {
                         if parent == ancestor {
                             return true;
                         }
+                        if parent == current {
+                            return false; // self-referential parent, stop
+                        }
                         current = parent;
                     }
                 },

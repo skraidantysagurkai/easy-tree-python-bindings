@@ -1,4 +1,5 @@
 from easy_tree import PyTree
+import pytest
 
 
 def test_new():
@@ -184,6 +185,18 @@ def test_move_subtree():
     assert len(tree) == 4  # nothing added or removed
 
 
+def test_move_subtree_self_referential_root_does_not_hang():
+    tree = PyTree()
+    root = tree.add_node("root")
+    child = tree.add_child(root, "child")
+    grand = tree.add_child(child, "grandchild")
+
+    # This must return quickly — previously hung forever due to root's
+    # self-referential parent pointer causing is_descendant to loop infinitely
+    with pytest.raises(ValueError):
+        tree.move_subtree(child, grand)  # invalid: grand is inside child's subtree
+
+
 def test_move_subtree_cycle_raises():
     tree = PyTree()
     root = tree.add_node("root")
@@ -323,6 +336,7 @@ if __name__ == "__main__":
         test_items,
         test_set,
         test_move_subtree,
+        test_move_subtree_self_referential_root_does_not_hang,
         test_move_subtree_cycle_raises,
         test_move_subtree_root_raises,
         test_move_node,
